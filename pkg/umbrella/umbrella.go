@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-type Umbrella struct {
+type UmbrellaService struct {
 	authUrl        string
 	deploymentsUrl string
 	adminUrl       string
@@ -20,7 +20,7 @@ type Umbrella struct {
 	client         *http.Client
 }
 
-func NewUmbrellaSvc(hostname string, version string, clientID string, clientSecret string) Umbrella {
+func NewUmbrellaService(hostname string, version string, clientID string, clientSecret string) UmbrellaService {
 	baseUrl := "https://" + hostname
 	authUrl := baseUrl + "/auth/" + version
 	deploymentsUrl := baseUrl + "/deployments/" + version
@@ -34,10 +34,10 @@ func NewUmbrellaSvc(hostname string, version string, clientID string, clientSecr
 		TokenURL:     authUrl + "/token",
 	}
 	httpClient := clientConfig.Client(context.TODO())
-	return Umbrella{authUrl: authUrl, deploymentsUrl: deploymentsUrl, adminUrl: adminUrl, policiesUrl: policiesUrl, reportsUrl: reportsUrl, client: httpClient}
+	return UmbrellaService{authUrl: authUrl, deploymentsUrl: deploymentsUrl, adminUrl: adminUrl, policiesUrl: policiesUrl, reportsUrl: reportsUrl, client: httpClient}
 }
 
-func (u *Umbrella) GetDestinationLists(limit int) ([]DestinationList, error) {
+func (u *UmbrellaService) GetDestinationLists(limit int) ([]DestinationList, error) {
 	page := 1
 	allDestinationLists := []DestinationList{}
 
@@ -67,7 +67,7 @@ func (u *Umbrella) GetDestinationLists(limit int) ([]DestinationList, error) {
 	return allDestinationLists, nil
 }
 
-func (u *Umbrella) GetDestinationList(id int) (DestinationList, error) {
+func (u *UmbrellaService) GetDestinationList(id int) (DestinationList, error) {
 	var data ResponseStatusMetaDestiantionList
 	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 	body, err := u.get(url)
@@ -81,7 +81,7 @@ func (u *Umbrella) GetDestinationList(id int) (DestinationList, error) {
 	return data.Data, nil
 }
 
-func (u *Umbrella) CreateDestinationList(access string, isGlobal bool, name string) (DestinationList, error) {
+func (u *UmbrellaService) CreateDestinationList(access string, isGlobal bool, name string) (DestinationList, error) {
 	var data DestinationList
 	url := fmt.Sprintf("%s/destinationlists", u.policiesUrl)
 
@@ -109,7 +109,7 @@ func (u *Umbrella) CreateDestinationList(access string, isGlobal bool, name stri
 	return data, nil
 }
 
-func (u *Umbrella) UpdateDestinationList(id int, name string) (DestinationList, error) {
+func (u *UmbrellaService) UpdateDestinationList(id int, name string) (DestinationList, error) {
 	var data ResponseStatusDestinationList
 	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 
@@ -134,7 +134,7 @@ func (u *Umbrella) UpdateDestinationList(id int, name string) (DestinationList, 
 	return data.Data, nil
 }
 
-func (u *Umbrella) DeleteDestinationList(id int) error {
+func (u *UmbrellaService) DeleteDestinationList(id int) error {
 	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 
 	_, err := u.delete(url, "", nil)
@@ -145,7 +145,7 @@ func (u *Umbrella) DeleteDestinationList(id int) error {
 	return nil
 }
 
-func (u *Umbrella) GetDestinations(id int, limit int) ([]Destination, error) {
+func (u *UmbrellaService) GetDestinations(id int, limit int) ([]Destination, error) {
 	page := 1
 	allDestinations := []Destination{}
 
@@ -177,7 +177,7 @@ func (u *Umbrella) GetDestinations(id int, limit int) ([]Destination, error) {
 	return allDestinations, nil
 }
 
-func (u *Umbrella) AddDestinations(id int, destinations []NewDestination) (DestinationList, error) {
+func (u *UmbrellaService) AddDestinations(id int, destinations []NewDestination) (DestinationList, error) {
 	var data ResponseStatusDestinationList
 	url := fmt.Sprintf("%s/destinationlists/%d/destinations", u.policiesUrl, id)
 
@@ -199,7 +199,7 @@ func (u *Umbrella) AddDestinations(id int, destinations []NewDestination) (Desti
 	return data.Data, nil
 }
 
-func (u *Umbrella) DeleteDestinations(id int, destinationIDs []int) (DestinationList, error) {
+func (u *UmbrellaService) DeleteDestinations(id int, destinationIDs []int) (DestinationList, error) {
 	var data ResponseStatusDestinationList
 	url := fmt.Sprintf("%s/destinationlists/%d/destinations/remove", u.policiesUrl, id)
 
@@ -221,7 +221,7 @@ func (u *Umbrella) DeleteDestinations(id int, destinationIDs []int) (Destination
 	return data.Data, nil
 }
 
-func (u *Umbrella) get(url string) ([]byte, error) {
+func (u *UmbrellaService) get(url string) ([]byte, error) {
 	res, err := u.client.Get(url)
 	if err != nil {
 		return nil, err
@@ -233,7 +233,7 @@ func (u *Umbrella) get(url string) ([]byte, error) {
 	return body, nil
 }
 
-func (u *Umbrella) post(url string, contentType string, data io.Reader) ([]byte, error) {
+func (u *UmbrellaService) post(url string, contentType string, data io.Reader) ([]byte, error) {
 	res, err := u.client.Post(url, contentType, data)
 	if err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func (u *Umbrella) post(url string, contentType string, data io.Reader) ([]byte,
 	return body, err
 }
 
-func (u *Umbrella) patch(url string, contentType string, data io.Reader) ([]byte, error) {
+func (u *UmbrellaService) patch(url string, contentType string, data io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodPatch, url, data)
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func (u *Umbrella) patch(url string, contentType string, data io.Reader) ([]byte
 	return body, nil
 }
 
-func (u *Umbrella) delete(url string, contentType string, data io.Reader) ([]byte, error) {
+func (u *UmbrellaService) delete(url string, contentType string, data io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodDelete, url, data)
 	if err != nil {
 		return nil, err
