@@ -101,24 +101,49 @@ func createDestinationList(blockFile umbrellasync.BlockFile, umbrellaService umb
 
 func addDestinationsToUmbrella(destinationsToAdd []string, destinationList umbrella.DestinationList, umbrellaService umbrella.UmbrellaService) {
 	fmt.Println("Added", len(destinationsToAdd), "destinations to Umbrella:", destinationList.Name)
-	var addPayload []umbrella.NewDestination
-	for _, destination := range destinationsToAdd {
-		addPayload = append(addPayload, umbrella.NewDestination{Destination: destination})
+
+	chunkSize := 500
+	for i := 0; i < len(destinationsToAdd); i += chunkSize {
+		end := i + chunkSize
+
+		// Avoid going over the slice bounds
+		if end > len(destinationsToAdd) {
+			end = len(destinationsToAdd)
+		}
+
+		var addPayload []umbrella.NewDestination
+		for _, destination := range destinationsToAdd[i:end] {
+			addPayload = append(addPayload, umbrella.NewDestination{Destination: destination})
+		}
+
+		fmt.Println(addPayload)
+		umbrellaService.AddDestinations(destinationList.ID, addPayload)
 	}
-	umbrellaService.AddDestinations(destinationList.ID, addPayload)
 }
 
 func removeDestinationsFromUmbrella(destinationsToRemove []string, existingDestinations []umbrella.Destination, destinationList umbrella.DestinationList, umbrellaService umbrella.UmbrellaService) {
 	destinationMap := mapDestinationIDs(existingDestinations)
 
 	fmt.Println("Removed", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
-	var removePayload []int
-	for _, destination := range destinationsToRemove {
-		if id, ok := destinationMap[destination]; ok {
-			removePayload = append(removePayload, id)
+
+	chunkSize := 500
+	for i := 0; i < len(destinationsToRemove); i += chunkSize {
+		end := i + chunkSize
+
+		// Avoid going over the slice bounds
+		if end > len(destinationsToRemove) {
+			end = len(destinationsToRemove)
 		}
+
+		var removePayload []int
+		for _, destination := range destinationsToRemove[i:end] {
+			if id, ok := destinationMap[destination]; ok {
+				removePayload = append(removePayload, id)
+			}
+		}
+
+		umbrellaService.DeleteDestinations(destinationList.ID, removePayload)
 	}
-	umbrellaService.DeleteDestinations(destinationList.ID, removePayload)
 }
 
 func mapDestinationIDs(destinations []umbrella.Destination) map[string]int {
