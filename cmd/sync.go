@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,6 +30,8 @@ var syncCmd = &cobra.Command{
 
 		for _, filepath := range filepaths {
 			syncFile(filepath, destinationLists, umbrellaService)
+			fmt.Println("Waiting for 60 seconds...")
+			time.Sleep(60 * time.Second)
 		}
 	},
 }
@@ -48,6 +52,7 @@ func syncFile(filepath string, destinationLists []umbrella.DestinationList, umbr
 		log.Fatal(err)
 	}
 
+	fmt.Println("Syncing file:", blockFile.Name)
 	log.Println("Syncing file:", blockFile.Name)
 
 	matchingDestinationList := findMatchingDestinationList(blockFile, destinationLists)
@@ -63,13 +68,19 @@ func syncFile(filepath string, destinationLists []umbrella.DestinationList, umbr
 
 	destinationsToAdd, destinationsToRemove := umbrellasync.Compare(blockFile.Data, destinations)
 
-	addDestinationsToUmbrella(destinationsToAdd, matchingDestinationList, umbrellaService)
-	removeDestinationsFromUmbrella(destinationsToRemove, destinations, matchingDestinationList, umbrellaService)
+	if len(destinationsToAdd) != 0 {
+		addDestinationsToUmbrella(destinationsToAdd, matchingDestinationList, umbrellaService)
+	}
+
+	if len(destinationsToRemove) != 0 {
+		removeDestinationsFromUmbrella(destinationsToRemove, destinations, matchingDestinationList, umbrellaService)
+	}
 }
 
 func findMatchingDestinationList(blockFile umbrellasync.BlockFile, destinationLists []umbrella.DestinationList) umbrella.DestinationList {
 	for _, destinationList := range destinationLists {
 		if strings.Contains(destinationList.Name, blockFile.Name) {
+			fmt.Println("Found match:", destinationList.Name)
 			log.Println("Found match:", destinationList.Name)
 			return destinationList
 		}
@@ -78,6 +89,7 @@ func findMatchingDestinationList(blockFile umbrellasync.BlockFile, destinationLi
 }
 
 func createDestinationList(blockFile umbrellasync.BlockFile, umbrellaService umbrella.UmbrellaService) umbrella.DestinationList {
+	fmt.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
 	log.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
 	destinationList, err := umbrellaService.CreateDestinationList("block", false, "SOC Block "+blockFile.Name)
 	if err != nil {
@@ -88,7 +100,7 @@ func createDestinationList(blockFile umbrellasync.BlockFile, umbrellaService umb
 }
 
 func addDestinationsToUmbrella(destinationsToAdd []string, destinationList umbrella.DestinationList, umbrellaService umbrella.UmbrellaService) {
-	log.Println("Added", len(destinationsToAdd), "destinations to Umbrella:", destinationList.Name)
+	fmt.Println("Added", len(destinationsToAdd), "destinations to Umbrella:", destinationList.Name)
 	var addPayload []umbrella.NewDestination
 	for _, destination := range destinationsToAdd {
 		addPayload = append(addPayload, umbrella.NewDestination{Destination: destination})
@@ -99,7 +111,7 @@ func addDestinationsToUmbrella(destinationsToAdd []string, destinationList umbre
 func removeDestinationsFromUmbrella(destinationsToRemove []string, existingDestinations []umbrella.Destination, destinationList umbrella.DestinationList, umbrellaService umbrella.UmbrellaService) {
 	destinationMap := mapDestinationIDs(existingDestinations)
 
-	log.Println("Removed", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
+	fmt.Println("Removed", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
 	var removePayload []int
 	for _, destination := range destinationsToRemove {
 		if id, ok := destinationMap[destination]; ok {

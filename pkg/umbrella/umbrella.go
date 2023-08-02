@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"golang.org/x/oauth2/clientcredentials"
@@ -222,6 +223,7 @@ func (u *UmbrellaService) DeleteDestinations(id int, destinationIDs []int) (Dest
 }
 
 func (u *UmbrellaService) get(url string) ([]byte, error) {
+	log.Println("Sending GET:", url)
 	res, err := u.client.Get(url)
 	if err != nil {
 		return nil, err
@@ -234,6 +236,7 @@ func (u *UmbrellaService) get(url string) ([]byte, error) {
 }
 
 func (u *UmbrellaService) post(url string, contentType string, data io.Reader) ([]byte, error) {
+	log.Println("Sending POST:", url)
 	res, err := u.client.Post(url, contentType, data)
 	if err != nil {
 		return nil, err
@@ -248,6 +251,7 @@ func (u *UmbrellaService) post(url string, contentType string, data io.Reader) (
 }
 
 func (u *UmbrellaService) patch(url string, contentType string, data io.Reader) ([]byte, error) {
+	log.Println("Sending PATCH:", url)
 	req, err := http.NewRequest(http.MethodPatch, url, data)
 	if err != nil {
 		return nil, err
@@ -269,6 +273,7 @@ func (u *UmbrellaService) patch(url string, contentType string, data io.Reader) 
 }
 
 func (u *UmbrellaService) delete(url string, contentType string, data io.Reader) ([]byte, error) {
+	log.Println("Sending DELETE:", url)
 	req, err := http.NewRequest(http.MethodDelete, url, data)
 	if err != nil {
 		return nil, err
