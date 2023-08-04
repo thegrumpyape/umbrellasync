@@ -103,7 +103,9 @@ func createDestinationList(blockFile io.BlockFile, umbrellaService api.UmbrellaS
 }
 
 func addDestinationsToUmbrella(destinationsToAdd []string, destinationList api.DestinationList, umbrellaService api.UmbrellaService) {
-	fmt.Println("Added", len(destinationsToAdd), "destinations to Umbrella:", destinationList.Name)
+	originalDestinationCount := destinationList.Meta.DestinationCount
+	finalDestinationCount := originalDestinationCount
+	destinationsToAdd = api.ValidateDestinationValues(destinationsToAdd)
 
 	chunkSize := 500
 	for i := 0; i < len(destinationsToAdd); i += chunkSize {
@@ -119,14 +121,21 @@ func addDestinationsToUmbrella(destinationsToAdd []string, destinationList api.D
 			addPayload = append(addPayload, api.NewDestination{Destination: destination})
 		}
 
-		umbrellaService.AddDestinations(destinationList.ID, addPayload)
+		dl, err := umbrellaService.AddDestinations(destinationList.ID, addPayload)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		finalDestinationCount = dl.Meta.DestinationCount
 	}
+
+	fmt.Println("Added", finalDestinationCount-originalDestinationCount, "destinations to Umbrella:", destinationList.Name)
 }
 
 func removeDestinationsFromUmbrella(destinationsToRemove []string, existingDestinations []api.Destination, destinationList api.DestinationList, umbrellaService api.UmbrellaService) {
 	destinationMap := mapDestinationIDs(existingDestinations)
 
-	fmt.Println("Removed", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
+	fmt.Println("Removing", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
 
 	chunkSize := 500
 	for i := 0; i < len(destinationsToRemove); i += chunkSize {

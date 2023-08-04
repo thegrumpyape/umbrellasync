@@ -304,6 +304,7 @@ func (u *UmbrellaService) request(method string, url string, headers map[string]
 
 	// Reads response body
 	body, err := io.ReadAll(resp.Body)
+	fmt.Println(string(body))
 	if err != nil {
 		return UmbrellaResponse{}, fmt.Errorf("error reading response body: %w", err)
 	}

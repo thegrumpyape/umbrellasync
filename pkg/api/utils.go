@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
+	"net/url"
 )
 
 func unmarshalResponseBody(response UmbrellaResponse, v interface{}) error {
@@ -22,4 +25,23 @@ func createJSONPayload(data interface{}) (*bytes.Buffer, error) {
 	}
 
 	return bytes.NewBuffer(jsonData), nil
+}
+
+func ValidateDestinationValues(destinations []string) []string {
+	for i, d := range destinations {
+		dUrl, err := url.Parse(d)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if net.ParseIP(dUrl.Host) != nil {
+			removeAtIndex(destinations, i)
+			fmt.Println("Removed", dUrl.Host, "from list")
+		}
+	}
+	return destinations
+}
+
+func removeAtIndex(s []string, index int) []string {
+	return append(s[:index], s[index+1:]...)
 }
