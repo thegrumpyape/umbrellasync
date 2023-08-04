@@ -119,7 +119,6 @@ func addDestinationsToUmbrella(destinationsToAdd []string, destinationList api.D
 			addPayload = append(addPayload, api.NewDestination{Destination: destination})
 		}
 
-		fmt.Println(addPayload)
 		umbrellaService.AddDestinations(destinationList.ID, addPayload)
 	}
 }
