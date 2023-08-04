@@ -304,7 +304,6 @@ func (u *UmbrellaService) request(method string, url string, headers map[string]
 
 	// Reads response body
 	body, err := io.ReadAll(resp.Body)
-	fmt.Println(string(body))
 	if err != nil {
 		return UmbrellaResponse{}, fmt.Errorf("error reading response body: %w", err)
 	}
@@ -313,6 +312,10 @@ func (u *UmbrellaService) request(method string, url string, headers map[string]
 	err = json.Unmarshal(body, &umbrellaResponse)
 	if err != nil {
 		return UmbrellaResponse{}, fmt.Errorf("error unmarshalling response: %w", err)
+	}
+
+	if umbrellaResponse.Status.Code != 200 {
+		return umbrellaResponse, fmt.Errorf("non-OK HTTP Status: %d %s %s", umbrellaResponse.Status.Code, umbrellaResponse.Status.Text, umbrellaResponse.Data)
 	}
 
 	return umbrellaResponse, nil

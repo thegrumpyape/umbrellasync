@@ -123,10 +123,10 @@ func addDestinationsToUmbrella(destinationsToAdd []string, destinationList api.D
 
 		dl, err := umbrellaService.AddDestinations(destinationList.ID, addPayload)
 		if err != nil {
-			log.Fatal(err)
+			logger.Println(err)
+		} else {
+			finalDestinationCount = dl.Meta.DestinationCount
 		}
-
-		finalDestinationCount = dl.Meta.DestinationCount
 	}
 
 	fmt.Println("Added", finalDestinationCount-originalDestinationCount, "destinations to Umbrella:", destinationList.Name)
