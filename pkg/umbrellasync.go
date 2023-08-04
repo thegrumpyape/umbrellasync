@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
+	"github.com/thegrumpyape/umbrellasync/pkg/api"
 )
 
 func NewBlockFile(path string) (BlockFile, error) {
@@ -38,7 +38,7 @@ func NewBlockFile(path string) (BlockFile, error) {
 }
 
 // Compares BlockFile with Destinations from DestinationList
-func Compare(bl []string, dl []umbrella.Destination) ([]string, []string) {
+func Compare(bl []string, dl []api.Destination) ([]string, []string) {
 	var destsToAdd, destsToDelete []string
 
 	mA, mB := make(map[string]bool), make(map[string]bool)

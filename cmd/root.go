@@ -9,9 +9,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var logPath string
-var logFile *os.File
+var (
+	cfgFile string
+	logPath string
+	logFile *os.File
+	logger  *log.Logger
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -45,6 +48,8 @@ func init() {
 
 	log.SetOutput(logFile)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
+
+	logger = log.New(os.Stdout, "umbrella: ", log.LstdFlags)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.umbrellasync.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logPath, "log", "", "log file (default is ./umbrellasync.log)")

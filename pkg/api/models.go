@@ -1,26 +1,19 @@
-package umbrella
+package api
 
-type ResponseStatusMetaDestinations struct {
-	Status Status        `json:"status"`
-	Meta   Meta          `json:"meta"`
-	Data   []Destination `json:"data"`
-}
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
 
-type ResponseStatusMetaDestiantionList struct {
-	Status Status          `json:"status"`
-	Meta   Meta            `json:"meta"`
-	Data   DestinationList `json:"data"`
-}
-
-type ResponseStatusMetaDestinationLists struct {
-	Status Status            `json:"status"`
-	Meta   Meta              `json:"meta"`
-	Data   []DestinationList `json:"data"`
-}
-
-type ResponseStatusDestinationList struct {
-	Status Status          `json:"status"`
-	Data   DestinationList `json:"data"`
+type UmbrellaService struct {
+	authUrl        string
+	deploymentsUrl string
+	adminUrl       string
+	policiesUrl    string
+	reportsUrl     string
+	client         *http.Client
+	logger         *log.Logger
 }
 
 type Status struct {
@@ -67,4 +60,10 @@ type DestinationList struct {
 	MarkedForDeletion    bool                `json:"markedForDeletion"`
 	BundleTypeId         int                 `json:"bundleTypeId"`
 	Meta                 DestinationListMeta `json:"meta"`
+}
+
+type UmbrellaResponse struct {
+	Status Status           `json:"status"`
+	Meta   Meta             `json:"meta"`
+	Data   *json.RawMessage `json:"data"`
 }
