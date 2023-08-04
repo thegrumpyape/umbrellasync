@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	umbrellasync "github.com/thegrumpyape/umbrellasync/pkg"
 	"github.com/thegrumpyape/umbrellasync/pkg/api"
+	"github.com/thegrumpyape/umbrellasync/pkg/io"
 )
 
 // syncCmd represents the sync command
@@ -50,7 +50,7 @@ func fetchConfigParameters() (string, string, string, string, []string) {
 }
 
 func syncFile(filepath string, destinationLists []api.DestinationList, umbrellaService api.UmbrellaService) {
-	blockFile, err := umbrellasync.NewBlockFile(filepath)
+	blockFile, err := io.NewBlockFile(filepath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func syncFile(filepath string, destinationLists []api.DestinationList, umbrellaS
 		log.Fatal(err)
 	}
 
-	destinationsToAdd, destinationsToRemove := umbrellasync.Compare(blockFile.Data, destinations)
+	destinationsToAdd, destinationsToRemove := io.Compare(blockFile.Data, destinations)
 
 	if len(destinationsToAdd) != 0 {
 		addDestinationsToUmbrella(destinationsToAdd, matchingDestinationList, umbrellaService)
@@ -80,7 +80,7 @@ func syncFile(filepath string, destinationLists []api.DestinationList, umbrellaS
 	}
 }
 
-func findMatchingDestinationList(blockFile umbrellasync.BlockFile, destinationLists []api.DestinationList) api.DestinationList {
+func findMatchingDestinationList(blockFile io.BlockFile, destinationLists []api.DestinationList) api.DestinationList {
 	for _, destinationList := range destinationLists {
 		if strings.Contains(destinationList.Name, blockFile.Name) {
 			fmt.Println("Found match:", destinationList.Name)
@@ -91,7 +91,7 @@ func findMatchingDestinationList(blockFile umbrellasync.BlockFile, destinationLi
 	return api.DestinationList{}
 }
 
-func createDestinationList(blockFile umbrellasync.BlockFile, umbrellaService api.UmbrellaService) api.DestinationList {
+func createDestinationList(blockFile io.BlockFile, umbrellaService api.UmbrellaService) api.DestinationList {
 	fmt.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
 	log.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
 	destinationList, err := umbrellaService.CreateDestinationList("block", false, "SOC Block "+blockFile.Name)

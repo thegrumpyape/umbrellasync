@@ -1,4 +1,4 @@
-package umbrellasync
+package io
 
 import (
 	"bufio"
