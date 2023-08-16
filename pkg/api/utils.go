@@ -1,12 +1,8 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"log"
-	"net"
-	"net/url"
+	"strconv"
 )
 
 func unmarshalResponseBody(response UmbrellaResponse, v interface{}) error {
@@ -18,30 +14,11 @@ func unmarshalResponseBody(response UmbrellaResponse, v interface{}) error {
 	return nil
 }
 
-func createJSONPayload(data interface{}) (*bytes.Buffer, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling payload: %w", err)
+func mapDestinationIDs(destinations []Destination) map[string]int {
+	destinationMap := make(map[string]int)
+	for _, destination := range destinations {
+		id, _ := strconv.Atoi(destination.ID)
+		destinationMap[destination.Destination] = id
 	}
-
-	return bytes.NewBuffer(jsonData), nil
-}
-
-func ValidateDestinationValues(destinations []string) []string {
-	for i, d := range destinations {
-		dUrl, err := url.Parse(d)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if net.ParseIP(dUrl.Host) != nil {
-			removeAtIndex(destinations, i)
-			fmt.Println("Removed", dUrl.Host, "from list")
-		}
-	}
-	return destinations
-}
-
-func removeAtIndex(s []string, index int) []string {
-	return append(s[:index], s[index+1:]...)
+	return destinationMap
 }

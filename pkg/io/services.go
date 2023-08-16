@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"log"
 	"os"
-
-	"github.com/thegrumpyape/umbrellasync/pkg/api"
 )
 
 func NewBlockFile(path string) (BlockFile, error) {
@@ -35,33 +33,4 @@ func NewBlockFile(path string) (BlockFile, error) {
 	}
 
 	return BlockFile{Path: file.Name(), Name: fileinfo.Name(), Data: lines}, nil
-}
-
-// Compares BlockFile with Destinations from DestinationList
-func Compare(bl []string, dl []api.Destination) ([]string, []string) {
-	var destsToAdd, destsToDelete []string
-
-	mA, mB := make(map[string]bool), make(map[string]bool)
-
-	for _, item := range bl {
-		mA[item] = true
-	}
-
-	for _, item := range dl {
-		mB[item.Destination] = true
-	}
-
-	for key := range mA {
-		if !mB[key] {
-			destsToAdd = append(destsToAdd, key)
-		}
-	}
-
-	for key := range mB {
-		if !mA[key] {
-			destsToDelete = append(destsToDelete, key)
-		}
-	}
-
-	return destsToAdd, destsToDelete
 }

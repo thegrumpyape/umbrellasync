@@ -3,14 +3,12 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thegrumpyape/umbrellasync/pkg/api"
-	"github.com/thegrumpyape/umbrellasync/pkg/io"
+	"github.com/thegrumpyape/umbrellasync/pkg/umbrellasync"
 )
 
 // syncCmd represents the sync command
@@ -32,7 +30,7 @@ var syncCmd = &cobra.Command{
 		}
 
 		for _, filepath := range filepaths {
-			syncFile(filepath, destinationLists, umbrellaService)
+			umbrellasync.SyncFile(filepath, destinationLists, umbrellaService)
 			fmt.Println("Waiting for 60 seconds...")
 			time.Sleep(60 * time.Second)
 		}
@@ -47,123 +45,6 @@ func fetchConfigParameters() (string, string, string, string, []string) {
 	filepaths := viper.GetStringSlice("files")
 
 	return hostname, version, key, secret, filepaths
-}
-
-func syncFile(filepath string, destinationLists []api.DestinationList, umbrellaService api.UmbrellaService) {
-	blockFile, err := io.NewBlockFile(filepath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Syncing file:", blockFile.Name)
-	log.Println("Syncing file:", blockFile.Name)
-
-	matchingDestinationList := findMatchingDestinationList(blockFile, destinationLists)
-
-	if matchingDestinationList == (api.DestinationList{}) {
-		matchingDestinationList = createDestinationList(blockFile, umbrellaService)
-	}
-
-	destinations, err := umbrellaService.GetDestinations(matchingDestinationList.ID, 100)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	destinationsToAdd, destinationsToRemove := io.Compare(blockFile.Data, destinations)
-
-	if len(destinationsToAdd) != 0 {
-		addDestinationsToUmbrella(destinationsToAdd, matchingDestinationList, umbrellaService)
-	}
-
-	if len(destinationsToRemove) != 0 {
-		removeDestinationsFromUmbrella(destinationsToRemove, destinations, matchingDestinationList, umbrellaService)
-	}
-}
-
-func findMatchingDestinationList(blockFile io.BlockFile, destinationLists []api.DestinationList) api.DestinationList {
-	for _, destinationList := range destinationLists {
-		if strings.Contains(destinationList.Name, blockFile.Name) {
-			fmt.Println("Found match:", destinationList.Name)
-			log.Println("Found match:", destinationList.Name)
-			return destinationList
-		}
-	}
-	return api.DestinationList{}
-}
-
-func createDestinationList(blockFile io.BlockFile, umbrellaService api.UmbrellaService) api.DestinationList {
-	fmt.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
-	log.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
-	destinationList, err := umbrellaService.CreateDestinationList("block", false, "SOC Block "+blockFile.Name)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return destinationList
-}
-
-func addDestinationsToUmbrella(destinationsToAdd []string, destinationList api.DestinationList, umbrellaService api.UmbrellaService) {
-	originalDestinationCount := destinationList.Meta.DestinationCount
-	finalDestinationCount := originalDestinationCount
-	destinationsToAdd = api.ValidateDestinationValues(destinationsToAdd)
-
-	chunkSize := 500
-	for i := 0; i < len(destinationsToAdd); i += chunkSize {
-		end := i + chunkSize
-
-		// Avoid going over the slice bounds
-		if end > len(destinationsToAdd) {
-			end = len(destinationsToAdd)
-		}
-
-		var addPayload []api.NewDestination
-		for _, destination := range destinationsToAdd[i:end] {
-			addPayload = append(addPayload, api.NewDestination{Destination: destination})
-		}
-
-		dl, err := umbrellaService.AddDestinations(destinationList.ID, addPayload)
-		if err != nil {
-			logger.Println(err)
-		} else {
-			finalDestinationCount = dl.Meta.DestinationCount
-		}
-	}
-
-	fmt.Println("Added", finalDestinationCount-originalDestinationCount, "destinations to Umbrella:", destinationList.Name)
-}
-
-func removeDestinationsFromUmbrella(destinationsToRemove []string, existingDestinations []api.Destination, destinationList api.DestinationList, umbrellaService api.UmbrellaService) {
-	destinationMap := mapDestinationIDs(existingDestinations)
-
-	fmt.Println("Removing", len(destinationsToRemove), "destinations from Umbrella:", destinationList.Name)
-
-	chunkSize := 500
-	for i := 0; i < len(destinationsToRemove); i += chunkSize {
-		end := i + chunkSize
-
-		// Avoid going over the slice bounds
-		if end > len(destinationsToRemove) {
-			end = len(destinationsToRemove)
-		}
-
-		var removePayload []int
-		for _, destination := range destinationsToRemove[i:end] {
-			if id, ok := destinationMap[destination]; ok {
-				removePayload = append(removePayload, id)
-			}
-		}
-
-		umbrellaService.DeleteDestinations(destinationList.ID, removePayload)
-	}
-}
-
-func mapDestinationIDs(destinations []api.Destination) map[string]int {
-	destinationMap := make(map[string]int)
-	for _, destination := range destinations {
-		id, _ := strconv.Atoi(destination.ID)
-		destinationMap[destination.Destination] = id
-	}
-	return destinationMap
 }
 
 func init() {
