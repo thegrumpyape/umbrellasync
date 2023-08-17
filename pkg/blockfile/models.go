@@ -1,4 +1,4 @@
-package io
+package blockfile
 
 type BlockFile struct {
 	Path string

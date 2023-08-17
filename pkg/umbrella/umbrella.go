@@ -13,11 +13,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thegrumpyape/umbrellasync/pkg/utils"
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-func NewUmbrellaService(hostname string, version string, clientID string, clientSecret string, logger *log.Logger) (UmbrellaService, error) {
+func Create(hostname string, version string, clientID string, clientSecret string, logger *log.Logger) (UmbrellaService, error) {
 	authUrl := fmt.Sprintf(authPath, hostname, version)
 	deploymentsUrl := fmt.Sprintf(deployPath, hostname, version)
 	adminUrl := fmt.Sprintf(adminPath, hostname, version)
@@ -411,7 +410,7 @@ func ValidateDestinationValues(destinations []string) []string {
 		}
 
 		if net.ParseIP(dUrl.Host) != nil {
-			utils.RemoveAtIndex(destinations, i)
+			RemoveAtIndex(destinations, i)
 			fmt.Println("Removed", dUrl.Host, "from list")
 		}
 	}
@@ -425,4 +424,8 @@ func CreateJSONPayload(data interface{}) (*bytes.Buffer, error) {
 	}
 
 	return bytes.NewBuffer(jsonData), nil
+}
+
+func RemoveAtIndex(s []string, index int) []string {
+	return append(s[:index], s[index+1:]...)
 }

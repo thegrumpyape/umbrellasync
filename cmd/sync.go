@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/thegrumpyape/umbrellasync/pkg/io"
+	"github.com/thegrumpyape/umbrellasync/pkg/blockfile"
 	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
 )
 
@@ -26,7 +26,7 @@ var syncCmd = &cobra.Command{
 		filepaths := viper.GetStringSlice("files")
 
 		// create umbrella service
-		umbrellaService, err := umbrella.NewUmbrellaService(hostname, version, key, secret, logger)
+		umbrellaService, err := umbrella.Create(hostname, version, key, secret, logger)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -39,7 +39,7 @@ var syncCmd = &cobra.Command{
 
 		for _, filepath := range filepaths {
 			// get block file data
-			blockFile, err := io.NewBlockFile(filepath)
+			blockFile, err := blockfile.New(filepath)
 			if err != nil {
 				log.Fatal(err)
 			}

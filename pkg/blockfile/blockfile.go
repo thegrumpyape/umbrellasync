@@ -1,15 +1,14 @@
-package io
+package blockfile
 
 import (
 	"bufio"
 	"log"
 	"os"
 
-	"github.com/thegrumpyape/umbrellasync/pkg/comparison"
 	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
 )
 
-func NewBlockFile(path string) (BlockFile, error) {
+func New(path string) (BlockFile, error) {
 	var lines []string
 
 	file, err := os.Open(path)
@@ -53,7 +52,7 @@ func (f *BlockFile) Sync(umbrellaService umbrella.UmbrellaService, destinationLi
 		destinationData = append(destinationData, destination.Destination)
 	}
 
-	destinationsToAdd, destinationsToRemove := comparison.Compare(f.Data, destinationData)
+	destinationsToAdd, destinationsToRemove := Compare(f.Data, destinationData)
 
 	if len(destinationsToAdd) != 0 {
 		umbrellaService.AddDestinations(destinationList, destinationsToAdd, chunkSize)
@@ -64,4 +63,33 @@ func (f *BlockFile) Sync(umbrellaService umbrella.UmbrellaService, destinationLi
 	}
 
 	return nil
+}
+
+// Compares BlockFile with Destinations from DestinationList
+func Compare(blocklistData []string, destinationListData []string) ([]string, []string) {
+	var destsToAdd, destsToDelete []string
+
+	blMap, dlMap := make(map[string]bool), make(map[string]bool)
+
+	for _, item := range blocklistData {
+		blMap[item] = true
+	}
+
+	for _, item := range destinationListData {
+		dlMap[item] = true
+	}
+
+	for key := range blMap {
+		if !dlMap[key] {
+			destsToAdd = append(destsToAdd, key)
+		}
+	}
+
+	for key := range dlMap {
+		if !blMap[key] {
+			destsToDelete = append(destsToDelete, key)
+		}
+	}
+
+	return destsToAdd, destsToDelete
 }
