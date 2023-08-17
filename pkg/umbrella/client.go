@@ -1,4 +1,4 @@
-package api
+package umbrella
 
 import (
 	"bytes"
@@ -7,23 +7,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/thegrumpyape/umbrellasync/pkg/utils"
 	"golang.org/x/oauth2/clientcredentials"
 )
-
-// createHTTPClient creates and returns an HTTP client for the UmbrellaService.
-func createHTTPClient(clientID, clientSecret, authURL string) (*http.Client, error) {
-	clientConfig := clientcredentials.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		TokenURL:     fmt.Sprintf(endpointCreateAuthorizationToken, authURL),
-	}
-	return clientConfig.Client(context.TODO()), nil
-}
 
 func NewUmbrellaService(hostname string, version string, clientID string, clientSecret string, logger *log.Logger) (UmbrellaService, error) {
 	authUrl := fmt.Sprintf(authPath, hostname, version)
@@ -47,77 +39,14 @@ func NewUmbrellaService(hostname string, version string, clientID string, client
 	}, nil
 }
 
-func CreateDestinationList(filename string, umbrellaService UmbrellaService) (DestinationList, error) {
-	fmt.Println("Creating new blocklist in Umbrella: SOC Block", filename)
-	log.Println("Creating new blocklist in Umbrella: SOC Block", filename)
-	destinationList, err := umbrellaService.CreateDestinationList("block", false, "SOC Block "+filename)
-	if err != nil {
-		return DestinationList{}, err
+// createHTTPClient creates and returns an HTTP client for the UmbrellaService.
+func createHTTPClient(clientID, clientSecret, authURL string) (*http.Client, error) {
+	clientConfig := clientcredentials.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		TokenURL:     fmt.Sprintf(endpointCreateAuthorizationToken, authURL),
 	}
-
-	return destinationList, nil
-}
-
-func AddDestinationsToUmbrella(destinationsToAdd []string, destinationList DestinationList, umbrellaService UmbrellaService) (int, error) {
-	originalDestinationCount := destinationList.Meta.DestinationCount
-	finalDestinationCount := originalDestinationCount
-	destinationsToAdd = utils.ValidateDestinationValues(destinationsToAdd)
-
-	chunkSize := 500
-	for i := 0; i < len(destinationsToAdd); i += chunkSize {
-		end := i + chunkSize
-
-		// Avoid going over the slice bounds
-		if end > len(destinationsToAdd) {
-			end = len(destinationsToAdd)
-		}
-
-		var addPayload []NewDestination
-		for _, destination := range destinationsToAdd[i:end] {
-			addPayload = append(addPayload, NewDestination{Destination: destination})
-		}
-
-		dl, err := umbrellaService.AddDestinations(destinationList.ID, addPayload)
-		if err != nil {
-			return 0, err
-		} else {
-			finalDestinationCount = dl.Meta.DestinationCount
-		}
-	}
-
-	return finalDestinationCount, nil
-}
-
-func RemoveDestinationsFromUmbrella(destinationsToRemove []string, existingDestinations []Destination, destinationList DestinationList, umbrellaService UmbrellaService) (int, error) {
-	originalDestinationCount := destinationList.Meta.DestinationCount
-	finalDestinationCount := originalDestinationCount
-	destinationMap := mapDestinationIDs(existingDestinations)
-
-	chunkSize := 500
-	for i := 0; i < len(destinationsToRemove); i += chunkSize {
-		end := i + chunkSize
-
-		// Avoid going over the slice bounds
-		if end > len(destinationsToRemove) {
-			end = len(destinationsToRemove)
-		}
-
-		var removePayload []int
-		for _, destination := range destinationsToRemove[i:end] {
-			if id, ok := destinationMap[destination]; ok {
-				removePayload = append(removePayload, id)
-			}
-		}
-
-		dl, err := umbrellaService.DeleteDestinations(destinationList.ID, removePayload)
-		if err != nil {
-			return 0, err
-		} else {
-			finalDestinationCount = dl.Meta.DestinationCount
-		}
-	}
-
-	return finalDestinationCount, nil
+	return clientConfig.Client(context.TODO()), nil
 }
 
 // Destination List Methods
@@ -296,55 +225,81 @@ func (u *UmbrellaService) GetDestinations(id int, limit int) ([]Destination, err
 	return allDestinations, nil
 }
 
-// Adds destinations to a destiantion list
-func (u *UmbrellaService) AddDestinations(id int, destinations []NewDestination) (DestinationList, error) {
-	url := fmt.Sprintf(endpointAddDestinationsToDestinationList, u.policiesUrl, id)
+// Add destinations to a destination list
+func (u *UmbrellaService) AddDestinations(destinationList DestinationList, destinationsToAdd []string, chunkSize int) (DestinationList, error) {
+	destinationsToAdd = ValidateDestinationValues(destinationsToAdd)
 
-	jsonData, err := json.Marshal(destinations)
-	if err != nil {
-		return DestinationList{}, err
-	}
+	for i := 0; i < len(destinationsToAdd); i += chunkSize {
+		end := i + chunkSize
+		if end > len(destinationsToAdd) {
+			end = len(destinationsToAdd)
+		}
 
-	headers := map[string]string{
-		"Content-Type": "application/json",
-	}
+		var addPayload []NewDestination
+		for _, destination := range destinationsToAdd[i:end] {
+			addPayload = append(addPayload, NewDestination{Destination: destination})
+		}
 
-	res, err := u.post(url, headers, nil, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return DestinationList{}, err
-	}
+		url := fmt.Sprintf(endpointAddDestinationsToDestinationList, u.policiesUrl, destinationList.ID)
+		jsonData, err := json.Marshal(addPayload)
+		if err != nil {
+			return destinationList, err
+		}
 
-	var destinationList DestinationList
-	err = unmarshalResponseBody(res, &destinationList)
-	if err != nil {
-		return DestinationList{}, err
+		headers := map[string]string{
+			"Content-Type": "application/json",
+		}
+
+		res, err := u.post(url, headers, nil, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return destinationList, err
+		}
+
+		err = unmarshalResponseBody(res, &destinationList)
+		if err != nil {
+			return destinationList, err
+		}
 	}
 
 	return destinationList, nil
 }
 
-// Removes destiantions from a destination list
-func (u *UmbrellaService) DeleteDestinations(id int, destinationIDs []int) (DestinationList, error) {
-	url := fmt.Sprintf(endpointDeleteDestinationsFromDestinationList, u.policiesUrl, id)
+// Removes destinations from a destination list
+func (u *UmbrellaService) DeleteDestinations(destinationList DestinationList, destinationsToRemove []string, existingDestinations []Destination, chunkSize int) (DestinationList, error) {
+	destinationMap := mapDestinationIDs(existingDestinations) // Assuming this maps destinations to IDs
 
-	jsonData, err := json.Marshal(destinationIDs)
-	if err != nil {
-		return DestinationList{}, err
-	}
+	for i := 0; i < len(destinationsToRemove); i += chunkSize {
+		end := i + chunkSize
+		if end > len(destinationsToRemove) {
+			end = len(destinationsToRemove)
+		}
 
-	headers := map[string]string{
-		"Content-Type": "application/json",
-	}
+		var removePayload []int
+		for _, destination := range destinationsToRemove[i:end] {
+			if id, ok := destinationMap[destination]; ok {
+				removePayload = append(removePayload, id)
+			}
+		}
 
-	res, err := u.delete(url, headers, nil, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return DestinationList{}, err
-	}
+		url := fmt.Sprintf(endpointDeleteDestinationsFromDestinationList, u.policiesUrl, destinationList.ID)
+		jsonData, err := json.Marshal(removePayload)
+		if err != nil {
+			return destinationList, err
+		}
 
-	var destinationList DestinationList
-	err = unmarshalResponseBody(res, &destinationList)
-	if err != nil {
-		return DestinationList{}, err
+		headers := map[string]string{
+			"Content-Type": "application/json",
+		}
+
+		res, err := u.delete(url, headers, nil, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return destinationList, err
+		}
+
+		err = unmarshalResponseBody(res, &destinationList)
+		if err != nil {
+			return destinationList, err
+		}
 	}
 
 	return destinationList, nil
@@ -428,4 +383,46 @@ func (u *UmbrellaService) request(method string, url string, headers map[string]
 	}
 
 	return umbrellaResponse, nil
+}
+
+func unmarshalResponseBody(response UmbrellaResponse, v interface{}) error {
+	err := json.Unmarshal(*response.Data, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func mapDestinationIDs(destinations []Destination) map[string]int {
+	destinationMap := make(map[string]int)
+	for _, destination := range destinations {
+		id, _ := strconv.Atoi(destination.ID)
+		destinationMap[destination.Destination] = id
+	}
+	return destinationMap
+}
+
+func ValidateDestinationValues(destinations []string) []string {
+	for i, d := range destinations {
+		dUrl, err := url.Parse(d)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if net.ParseIP(dUrl.Host) != nil {
+			utils.RemoveAtIndex(destinations, i)
+			fmt.Println("Removed", dUrl.Host, "from list")
+		}
+	}
+	return destinations
+}
+
+func CreateJSONPayload(data interface{}) (*bytes.Buffer, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling payload: %w", err)
+	}
+
+	return bytes.NewBuffer(jsonData), nil
 }

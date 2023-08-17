@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/thegrumpyape/umbrellasync/pkg/api"
-	"github.com/thegrumpyape/umbrellasync/pkg/umbrellasync"
+	"github.com/thegrumpyape/umbrellasync/pkg/sync"
+	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
 )
 
 // syncCmd represents the sync command
@@ -24,7 +24,7 @@ var syncCmd = &cobra.Command{
 		secret := viper.GetString("secret")
 		filepaths := viper.GetStringSlice("files")
 
-		umbrellaService, err := api.NewUmbrellaService(hostname, version, key, secret, logger)
+		umbrellaService, err := umbrella.NewUmbrellaService(hostname, version, key, secret, logger)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -34,7 +34,7 @@ var syncCmd = &cobra.Command{
 		}
 
 		for _, filepath := range filepaths {
-			umbrellasync.SyncFile(filepath, destinationLists, umbrellaService)
+			sync.SyncFile(filepath, destinationLists, umbrellaService)
 			fmt.Println("Waiting for 60 seconds...")
 			time.Sleep(60 * time.Second)
 		}
