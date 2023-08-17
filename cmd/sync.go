@@ -3,13 +3,12 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thegrumpyape/umbrellasync/pkg/blockfile"
-	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
+	"github.com/thegrumpyape/umbrellasync/pkg/umbrellasync"
 )
 
 // syncCmd represents the sync command
@@ -25,46 +24,21 @@ var syncCmd = &cobra.Command{
 		secret := viper.GetString("secret")
 		filepaths := viper.GetStringSlice("files")
 
-		// create umbrella service
-		umbrellaService, err := umbrella.CreateClient(hostname, version, key, secret, logger)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// get destination lists
-		destinationLists, err := umbrellaService.GetDestinationLists(100)
+		umbrellaSync, err := umbrellasync.New(hostname, version, key, secret, logger)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		for _, filepath := range filepaths {
-			// get block file data
+			// Create blockfile
 			blockFile, err := blockfile.New(filepath)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			// find matching destination list for block file
-			matchingDestinationList := umbrella.DestinationList{}
-
-			for _, dl := range destinationLists {
-				if strings.Contains(dl.Name, blockFile.Name) {
-					matchingDestinationList = dl
-					break
-				}
-			}
-
-			// if no match is found, create a new destination list
-			if matchingDestinationList == (umbrella.DestinationList{}) {
-				log.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
-				matchingDestinationList, err = umbrellaService.CreateDestinationList("block", false, "SOC Block "+blockFile.Name)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-
-			// sync file with matching destination list
-			blockFile.Sync(umbrellaService, matchingDestinationList)
+			// Sync blockfile
+			log.Println("Syncing file:", blockFile.Name)
+			umbrellaSync.Sync(blockFile)
 			fmt.Println("Waiting for 60 seconds...")
 			time.Sleep(60 * time.Second)
 		}
