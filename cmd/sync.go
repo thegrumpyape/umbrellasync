@@ -18,7 +18,11 @@ var syncCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Fetch the necessary parameters from the config.
-		hostname, version, key, secret, filepaths := fetchConfigParameters()
+		hostname := viper.GetString("api_hostname")
+		version := viper.GetString("api_version")
+		key := viper.GetString("key")
+		secret := viper.GetString("secret")
+		filepaths := viper.GetStringSlice("files")
 
 		umbrellaService, err := api.NewUmbrellaService(hostname, version, key, secret, logger)
 		if err != nil {
@@ -35,16 +39,6 @@ var syncCmd = &cobra.Command{
 			time.Sleep(60 * time.Second)
 		}
 	},
-}
-
-func fetchConfigParameters() (string, string, string, string, []string) {
-	hostname := viper.GetString("api_hostname")
-	version := viper.GetString("api_version")
-	key := viper.GetString("key")
-	secret := viper.GetString("secret")
-	filepaths := viper.GetStringSlice("files")
-
-	return hostname, version, key, secret, filepaths
 }
 
 func init() {

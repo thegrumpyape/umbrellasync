@@ -3,13 +3,14 @@ package umbrellasync
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/thegrumpyape/umbrellasync/pkg/api"
-	"github.com/thegrumpyape/umbrellasync/pkg/io"
+	"github.com/thegrumpyape/umbrellasync/pkg/file"
 )
 
 func SyncFile(filepath string, destinationLists []api.DestinationList, umbrellaService api.UmbrellaService) error {
-	blockFile, err := io.NewBlockFile(filepath)
+	blockFile, err := file.NewBlockFile(filepath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -17,7 +18,7 @@ func SyncFile(filepath string, destinationLists []api.DestinationList, umbrellaS
 	fmt.Println("Syncing file:", blockFile.Name)
 	log.Println("Syncing file:", blockFile.Name)
 
-	matchingDestinationList := api.FindMatchingDestinationList(blockFile.Name, destinationLists)
+	matchingDestinationList := FindMatchingDestinationList(blockFile.Name, destinationLists)
 
 	if matchingDestinationList == (api.DestinationList{}) {
 		matchingDestinationList, err = api.CreateDestinationList(blockFile.Name, umbrellaService)
@@ -71,4 +72,15 @@ func Compare(bl []string, dl []api.Destination) ([]string, []string) {
 	}
 
 	return destsToAdd, destsToDelete
+}
+
+func FindMatchingDestinationList(blockFileName string, destinationLists []api.DestinationList) api.DestinationList {
+	for _, destinationList := range destinationLists {
+		if strings.Contains(destinationList.Name, blockFileName) {
+			fmt.Println("Found match:", destinationList.Name)
+			log.Println("Found match:", destinationList.Name)
+			return destinationList
+		}
+	}
+	return api.DestinationList{}
 }
