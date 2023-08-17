@@ -219,7 +219,10 @@ func (u *UmbrellaService) GetDestinations(id int, limit int) ([]Destination, err
 
 // Add destinations to a destination list
 func (u *UmbrellaService) AddDestinations(destinationList DestinationList, destinationsToAdd []string, chunkSize int) (DestinationList, error) {
-	destinationsToAdd = ValidateDestinationValues(destinationsToAdd)
+	destinationsToAdd, err := ValidateDestinationValues(destinationsToAdd)
+	if err != nil {
+		u.logger.Fatal("Could not parse urls")
+	}
 
 	for i := 0; i < len(destinationsToAdd); i += chunkSize {
 		end := i + chunkSize
@@ -395,11 +398,11 @@ func mapDestinationIDs(destinations []Destination) map[string]int {
 	return destinationMap
 }
 
-func ValidateDestinationValues(destinations []string) []string {
+func ValidateDestinationValues(destinations []string) ([]string, error) {
 	for i, d := range destinations {
 		dUrl, err := url.Parse(d)
 		if err != nil {
-			log.Fatal(err)
+			return destinations, err
 		}
 
 		if net.ParseIP(dUrl.Host) != nil {
@@ -407,7 +410,7 @@ func ValidateDestinationValues(destinations []string) []string {
 			fmt.Println("Removed", dUrl.Host, "from list")
 		}
 	}
-	return destinations
+	return destinations, nil
 }
 
 func CreateJSONPayload(data interface{}) (*bytes.Buffer, error) {

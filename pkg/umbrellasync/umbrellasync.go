@@ -8,11 +8,6 @@ import (
 	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
 )
 
-type UmbrellaSync struct {
-	client           umbrella.UmbrellaService
-	destinationLists []umbrella.DestinationList
-}
-
 func New(hostname string, version string, key string, secret string, logger *log.Logger) (UmbrellaSync, error) {
 	// create umbrella service
 	umbrellaService, err := umbrella.CreateClient(hostname, version, key, secret, logger)
@@ -26,7 +21,7 @@ func New(hostname string, version string, key string, secret string, logger *log
 		return UmbrellaSync{}, err
 	}
 
-	return UmbrellaSync{client: umbrellaService, destinationLists: destinationLists}, nil
+	return UmbrellaSync{client: umbrellaService, destinationLists: destinationLists, logger: logger}, nil
 }
 
 func (u *UmbrellaSync) Sync(blockFile blockfile.BlockFile) error {
@@ -42,7 +37,7 @@ func (u *UmbrellaSync) Sync(blockFile blockfile.BlockFile) error {
 
 	// if no match is found, create a new destination list
 	if matchingDestinationList == (umbrella.DestinationList{}) {
-		log.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
+		u.logger.Println("Creating new blocklist in Umbrella: SOC Block", blockFile.Name)
 		var err error
 		matchingDestinationList, err = u.client.CreateDestinationList("block", false, "SOC Block "+blockFile.Name)
 		if err != nil {

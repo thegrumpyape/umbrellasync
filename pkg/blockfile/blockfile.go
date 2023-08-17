@@ -2,7 +2,6 @@ package blockfile
 
 import (
 	"bufio"
-	"log"
 	"os"
 )
 
@@ -11,7 +10,7 @@ func New(path string) (BlockFile, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		return BlockFile{}, err
 	}
 
 	defer file.Close()
