@@ -26,7 +26,7 @@ var syncCmd = &cobra.Command{
 		filepaths := viper.GetStringSlice("files")
 
 		// create umbrella service
-		umbrellaService, err := umbrella.Create(hostname, version, key, secret, logger)
+		umbrellaService, err := umbrella.CreateClient(hostname, version, key, secret, logger)
 		if err != nil {
 			log.Fatal(err)
 		}

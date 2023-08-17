@@ -16,34 +16,27 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-func Create(hostname string, version string, clientID string, clientSecret string, logger *log.Logger) (UmbrellaService, error) {
-	authUrl := fmt.Sprintf(authPath, hostname, version)
-	deploymentsUrl := fmt.Sprintf(deployPath, hostname, version)
-	adminUrl := fmt.Sprintf(adminPath, hostname, version)
-	policiesUrl := fmt.Sprintf(policiesPath, hostname, version)
-	reportsUrl := fmt.Sprintf(reportsPath, hostname, version)
+func CreateClient(hostname string, version string, clientID string, clientSecret string, logger *log.Logger) (UmbrellaService, error) {
+	tokenUrl := fmt.Sprintf("https://%s/auth/%s/token", hostname, version)
+	policiesUrl := fmt.Sprintf("https://%s/policies/%s", hostname, version)
 
-	httpClient, err := createHTTPClient(clientID, clientSecret, authUrl)
+	httpClient, err := createHTTPClient(clientID, clientSecret, tokenUrl)
 	if err != nil {
 		return UmbrellaService{}, fmt.Errorf("failed to create HTTP client: %w", err)
 	}
 	return UmbrellaService{
-		authUrl:        authUrl,
-		deploymentsUrl: deploymentsUrl,
-		adminUrl:       adminUrl,
-		policiesUrl:    policiesUrl,
-		reportsUrl:     reportsUrl,
-		client:         httpClient,
-		logger:         logger,
+		policiesUrl: policiesUrl,
+		client:      httpClient,
+		logger:      logger,
 	}, nil
 }
 
 // createHTTPClient creates and returns an HTTP client for the UmbrellaService.
-func createHTTPClient(clientID, clientSecret, authURL string) (*http.Client, error) {
+func createHTTPClient(clientID, clientSecret, tokenUrl string) (*http.Client, error) {
 	clientConfig := clientcredentials.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		TokenURL:     fmt.Sprintf(endpointCreateAuthorizationToken, authURL),
+		TokenURL:     tokenUrl,
 	}
 	return clientConfig.Client(context.TODO()), nil
 }
@@ -57,7 +50,7 @@ func (u *UmbrellaService) GetDestinationLists(limit int) ([]DestinationList, err
 
 	// Pagination to get all Destination Lists
 	for {
-		url := fmt.Sprintf(endpointGetDestinationLists, u.policiesUrl)
+		url := fmt.Sprintf("%s/destinationlists", u.policiesUrl)
 		params := map[string]string{
 			"page":  strconv.Itoa(page),
 			"limit": strconv.Itoa(limit),
@@ -92,7 +85,7 @@ func (u *UmbrellaService) GetDestinationLists(limit int) ([]DestinationList, err
 
 // Gets a single destination list
 func (u *UmbrellaService) GetDestinationList(id int) (DestinationList, error) {
-	url := fmt.Sprintf(endpointGetDestinationList, u.policiesUrl, id)
+	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 	body, err := u.get(url, nil, nil)
 	if err != nil {
 		return DestinationList{}, err
@@ -109,7 +102,7 @@ func (u *UmbrellaService) GetDestinationList(id int) (DestinationList, error) {
 
 // Creates a new destination list
 func (u *UmbrellaService) CreateDestinationList(access string, isGlobal bool, name string) (DestinationList, error) {
-	url := fmt.Sprintf(endpointCreateDestinationList, u.policiesUrl)
+	url := fmt.Sprintf("%s/destinationlists", u.policiesUrl)
 
 	payload := map[string]interface{}{
 		"access":   access,
@@ -142,7 +135,7 @@ func (u *UmbrellaService) CreateDestinationList(access string, isGlobal bool, na
 
 // Updates a destination lists name
 func (u *UmbrellaService) UpdateDestinationList(id int, name string) (DestinationList, error) {
-	url := fmt.Sprintf(endpointUpdateDestinationList, u.policiesUrl, id)
+	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 
 	payload := map[string]interface{}{
 		"name": name,
@@ -172,7 +165,7 @@ func (u *UmbrellaService) UpdateDestinationList(id int, name string) (Destinatio
 }
 
 func (u *UmbrellaService) DeleteDestinationList(id int) error {
-	url := fmt.Sprintf(endpointDeleteDestinationList, u.policiesUrl, id)
+	url := fmt.Sprintf("%s/destinationlists/%d", u.policiesUrl, id)
 
 	_, err := u.delete(url, nil, nil, nil)
 	if err != nil {
@@ -191,7 +184,7 @@ func (u *UmbrellaService) GetDestinations(id int, limit int) ([]Destination, err
 
 	// Pagination to get all Destinations
 	for {
-		url := fmt.Sprintf(endpointGetDestinationsInDestinationList, u.policiesUrl, id)
+		url := fmt.Sprintf("%s/destinationlists/%d/destinations", u.policiesUrl, id)
 		params := map[string]string{
 			"page":  strconv.Itoa(page),
 			"limit": strconv.Itoa(limit),
@@ -239,7 +232,7 @@ func (u *UmbrellaService) AddDestinations(destinationList DestinationList, desti
 			addPayload = append(addPayload, NewDestination{Destination: destination})
 		}
 
-		url := fmt.Sprintf(endpointAddDestinationsToDestinationList, u.policiesUrl, destinationList.ID)
+		url := fmt.Sprintf("%s/destinationlists/%d/destinations", u.policiesUrl, destinationList.ID)
 		jsonData, err := json.Marshal(addPayload)
 		if err != nil {
 			return destinationList, err
@@ -280,7 +273,7 @@ func (u *UmbrellaService) DeleteDestinations(destinationList DestinationList, de
 			}
 		}
 
-		url := fmt.Sprintf(endpointDeleteDestinationsFromDestinationList, u.policiesUrl, destinationList.ID)
+		url := fmt.Sprintf("%s/destinationlists/%d/destinations/remove", u.policiesUrl, destinationList.ID)
 		jsonData, err := json.Marshal(removePayload)
 		if err != nil {
 			return destinationList, err
