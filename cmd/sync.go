@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"log"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,20 +24,20 @@ var syncCmd = &cobra.Command{
 
 		umbrellaSync, err := umbrellasync.New(hostname, version, key, secret, logger)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 
 		for _, filepath := range filepaths {
 			// Create blockfile
 			blockFile, err := blockfile.New(filepath)
 			if err != nil {
-				log.Fatal(err)
+				logger.Fatal(err)
 			}
 
 			// Sync blockfile
-			log.Println("Syncing file:", blockFile.Name)
+			logger.Println("Syncing file:", blockFile.Name)
 			umbrellaSync.Sync(blockFile)
-			fmt.Println("Waiting for 60 seconds...")
+			logger.Println("Waiting for 60 seconds...")
 			time.Sleep(60 * time.Second)
 		}
 	},
