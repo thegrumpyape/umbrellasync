@@ -12,13 +12,9 @@ import (
 )
 
 type UmbrellaService struct {
-	authUrl        string
-	deploymentsUrl string
-	adminUrl       string
-	policiesUrl    string
-	reportsUrl     string
-	client         *http.Client
-	logger         *log.Logger
+	policiesUrl string
+	client      *http.Client
+	logger      *log.Logger
 }
 
 type Status struct {

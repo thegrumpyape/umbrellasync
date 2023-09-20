@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -387,7 +388,7 @@ func (u *UmbrellaService) request(method string, url string, headers map[string]
 	}
 
 	if umbrellaResponse.Status.Code != 200 {
-		return umbrellaResponse, fmt.Errorf("non-OK HTTP Status: %d %s %s", umbrellaResponse.Status.Code, umbrellaResponse.Status.Text, umbrellaResponse.Data)
+		return umbrellaResponse, fmt.Errorf("non-OK HTTP Status: %d %s %+v", umbrellaResponse.Status.Code, umbrellaResponse.Status.Text, umbrellaResponse.Data)
 	}
 
 	return umbrellaResponse, nil
@@ -412,16 +413,64 @@ func mapDestinationIDs(destinations []Destination) map[string]int {
 }
 
 func ValidateDestinationValues(destinations []string) ([]string, error) {
-	for i, d := range destinations {
+	var validURLs []string
+	ignoreCount := 0
+	highVolumeDomains := map[string]struct{}{
+		"new.express.adobe.com":  {},
+		"express.adobe.com":      {},
+		"indd.adobe.com":         {},
+		"storage.googleapis.com": {},
+		"web.core.windows.net":   {},
+		"blob.core.windows.net":  {},
+		"googleusercontent.com":  {},
+		"doubleclick.net":        {},
+		"gstatic.com":            {},
+	}
+
+	isHighVolumeDomain := func(host string) bool {
+		for domain := range highVolumeDomains {
+			pattern := `(^|\.)` + regexp.QuoteMeta(domain) + `$`
+			matched, err := regexp.MatchString(pattern, host)
+			if err != nil {
+				return false
+			}
+			if matched {
+				return true
+			}
+		}
+		return false
+	}
+
+	fmt.Println("Validating domains...")
+
+	for _, d := range destinations {
 		dUrl, err := url.Parse(d)
 		if err != nil {
-			return destinations, err
+			ignoreCount++
+			continue
 		}
 
-		if net.ParseIP(dUrl.Host) != nil {
-			RemoveAtIndex(destinations, i)
-			fmt.Println("Removed", dUrl.Host, "from list")
+		host, _, err := net.SplitHostPort(dUrl.Host)
+		if err != nil {
+			host = dUrl.Host
 		}
+		if net.ParseIP(host) != nil {
+			ignoreCount++
+			continue
+		}
+
+		if isHighVolumeDomain(host) {
+			ignoreCount++
+			continue
+		}
+
+		url := dUrl.Scheme + "://" + host + dUrl.Path
+		if dUrl.RawQuery != "" {
+			url = url + "?" + dUrl.RawQuery
+		}
+		validURLs = append(validURLs, url)
 	}
-	return destinations, nil
+
+	fmt.Println("URLs Ignored:", ignoreCount)
+	return validURLs, nil
 }
