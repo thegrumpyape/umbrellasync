@@ -8,6 +8,12 @@ import (
 	"github.com/thegrumpyape/umbrellasync/pkg/umbrella"
 )
 
+type UmbrellaSync struct {
+	client           umbrella.UmbrellaService
+	destinationLists []umbrella.DestinationList
+	logger           *log.Logger
+}
+
 func New(hostname string, version string, key string, secret string, logger *log.Logger) (UmbrellaSync, error) {
 	// create umbrella service
 	umbrellaService, err := umbrella.CreateClient(hostname, version, key, secret, logger)

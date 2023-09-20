@@ -5,6 +5,12 @@ import (
 	"os"
 )
 
+type BlockFile struct {
+	Path string
+	Name string
+	Data []string
+}
+
 func New(path string) (BlockFile, error) {
 	var lines []string
 
