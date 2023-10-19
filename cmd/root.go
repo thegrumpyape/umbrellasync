@@ -1,98 +1,71 @@
 package cmd
 
 import (
-	"fmt"
-	"log"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/thegrumpyape/umbrellasync/cmd/config"
+	"github.com/thegrumpyape/umbrellasync/cmd/sync"
+	"github.com/thegrumpyape/umbrellasync/cmd/version"
+	"github.com/thegrumpyape/umbrellasync/pkg/configurationManager"
+	"github.com/thegrumpyape/umbrellasync/pkg/logging"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	cfgFile string
-	logPath string
-	logFile *os.File
-	logger  *log.Logger
-)
-
-// rootCmd represents the base command when called without any subcommands
+var debug bool
+var logger logging.Logger
 var rootCmd = &cobra.Command{
 	Use:   "umbrellasync",
-	Short: "Syncs blocklists between files and Umbrella",
-	Long:  ``,
+	Short: "Syncing threat intel with Umbrella",
+	Long:  "Syncing threat intel with Umbrella",
 }
 
 func Execute() {
-	if logFile != nil {
-		defer logFile.Close()
-	}
-
 	err := rootCmd.Execute()
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
 	}
 }
+
+var CliVersion = "0.0.1"
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	if logPath == "" {
-		logPath = "umbrellasync.log"
+	lumberjackLogrotate := &lumberjack.Logger{
+		Filename:   "./logs/umbrellasync.log",
+		MaxSize:    100,
+		MaxBackups: 3,
+		MaxAge:     28,
+		Compress:   true,
 	}
 
-	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		log.Panic(err)
+	logger := &logrus.Logger{
+		Out:       os.Stdout,
+		Formatter: &logrus.TextFormatter{ForceColors: true},
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
 	}
+	fileHook := logging.NewFileHook(lumberjackLogrotate, &logrus.JSONFormatter{})
+	logger.AddHook(fileHook)
+	configurationManager := configurationManager.New()
+	cobra.OnInitialize(configurationManager.InitConfigFile)
+	rootCmd.AddCommand(sync.New(&sync.SyncCommandDependencies{
+		ConfigurationManager: configurationManager,
+		Logger:               logger,
+	}))
+	rootCmd.AddCommand(config.New(&config.ConfigCommandDependencies{
+		ConfigurationManager: configurationManager,
+	}))
 
-	log.SetOutput(logFile)
-	log.SetFlags(log.Lshortfile | log.LstdFlags)
+	rootCmd.AddCommand(version.New(&version.VersionCommandDependencies{
+		CliVersion: CliVersion,
+	}))
 
-	logger = log.New(os.Stdout, "umbrella: ", log.LstdFlags)
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.umbrellasync.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logPath, "log", "", "log file (default is ./umbrellasync.log)")
-
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		// Search config in home directory with name ".umbrellasync" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".umbrellasync")
-
-		cfgFile = fmt.Sprintf("%s/.umbrellasync.yaml", home)
-	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; Create config file
-			fmt.Println("No config file found at:", cfgFile)
-			err := CreateConfig()
-			if err != nil {
-				log.Fatal(err)
-			}
-			viper.SetConfigFile(cfgFile)
-
-		} else {
-			// Config file was found but another error was produced
-			fmt.Println("Error reading config file:", viper.ConfigFileUsed())
-			fmt.Println("Check the config file formatting")
-			log.Fatal(err)
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if debug {
+			logger.SetLevel(logrus.DebugLevel)
 		}
 	}
+
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
 }

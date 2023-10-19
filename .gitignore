@@ -24,4 +24,5 @@ go.work
 
 *-linux
 
-bin/*
+bin
+logs
